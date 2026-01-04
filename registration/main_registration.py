@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox
 import data
-
+import hashlib
 
 # ИНИЦИАЛИЗАЦИЯ БД ПРИ СТАРТЕ
 data.init()
@@ -15,7 +15,14 @@ def check_safety(text):
 			return False
 	return True
 
+# ХЕШИРОВАНИЕ ПОРОЛЯ
+def get_hash(password):
+	password_in_bytes = password.encode('utf-8')
+	hash_object = hashlib.sha256(password_in_bytes)
+	hex_result = hash_object.hexdigest()
+	return hex_result
 
+# ВХОД В СИСТЕМУ
 class BankApp:
 	def __init__(self, root):
 		self.root = root
@@ -83,11 +90,14 @@ class BankApp:
 			messagebox.showwarning("Внимание", "Пароль должен быть от 4 до 16 символов")
 			return
 
-		messagebox.showinfo("Информация", f"Попытка входа: {u}")
+		# ХЕШИРУЕМ ПОРОЛЬ
+		current_hash = get_hash(p)
+		# ОТПРАВКА В БАЗУ ДАННЫХ (не сделано)
+
 	def open_registration(self):
 		RegisterWindow(self.root)
 
-
+# РЕГИСТРАЦИЯ В СИСТЕМУ
 class RegisterWindow:
 	def __init__(self, master):
 		self.window = tk.Toplevel(master)
@@ -146,6 +156,10 @@ class RegisterWindow:
 		if p1 != p2:
 			messagebox.showerror("Ошибка", "Пароли не совпадают!")
 			return
+
+		# ХЕШИРУЕМ ПОРОЛЬ
+		current_hash1 = get_hash(p1)
+		# ОТПРАВКА В БАЗУ ДАННЫХ (не сделано)
 
 		# СОЗДАНИЕ СЧЁТА
 		account_id = hash(u) & 0x7FFFFFFF
