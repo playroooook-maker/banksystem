@@ -1,123 +1,122 @@
 import tkinter as tk
 from tkinter import messagebox
-import data
 import hashlib
-
+import data
 # ИНИЦИАЛИЗАЦИЯ БД
-data.init()
+data.init_db()
+# УТИЛИТЫ
+def check_safety(text: str) -> bool:
+    forbidden = "/^:;\"'--*"
+    return not any(c in forbidden for c in text)
 
 
-def check_safety(text):
-    forbidden_chars = "/^:;\"'--*"
-    for char in forbidden_chars:
-        if char in text:
-            return False
-    return True
-
-
-def get_hash(password):
+def get_hash(password: str) -> str:
     return hashlib.sha256(password.encode("utf-8")).hexdigest()
-
-
-class BankApp:
+# ОКНО ВХОДА
+class LoginWindow:
     def __init__(self, root):
         self.root = root
-        self.root.title("SberPython Bank")
+        self.root.title("Bank | Вход")
+        self.root.geometry("420x260")
         self.root.resizable(False, False)
-        self.center_window(500, 280)
-        self.create_widgets()
 
-    def center_window(self, width, height):
-        sw = self.root.winfo_screenwidth()
-        sh = self.root.winfo_screenheight()
-        x = (sw // 2) - (width // 2)
-        y = (sh // 2) - (height // 2)
-        self.root.geometry(f"{width}x{height}+{x}+{y}")
+        tk.Label(root, text="Логин", font=("Arial", 14)).pack(pady=10)
+        self.entry_login = tk.Entry(root, font=("Arial", 14))
+        self.entry_login.pack()
 
-    def create_widgets(self):
-        tk.Label(self.root, text="Логин:", font=("Arial", 18)).grid(row=0, column=0, pady=15)
-        self.entry_user = tk.Entry(self.root, font=("Arial", 14))
-        self.entry_user.grid(row=0, column=1)
-
-        tk.Label(self.root, text="Пароль:", font=("Arial", 18)).grid(row=1, column=0)
-        self.entry_pass = tk.Entry(self.root, show="*", font=("Arial", 14))
-        self.entry_pass.grid(row=1, column=1)
+        tk.Label(root, text="Пароль", font=("Arial", 14)).pack(pady=10)
+        self.entry_password = tk.Entry(root, show="*", font=("Arial", 14))
+        self.entry_password.pack()
 
         tk.Button(
-            self.root,
+            root,
             text="Войти",
             font=("Arial", 14),
             bg="#2ecc71",
             fg="white",
-            command=self.login_handler
-        ).grid(row=2, column=0, columnspan=2, pady=20)
+            command=self.login
+        ).pack(pady=15)
 
         tk.Button(
-            self.root,
+            root,
             text="Создать аккаунт",
-            command=self.open_registration
-        ).grid(row=3, column=0, columnspan=2)
+            font=("Arial", 12),
+            command=self.open_register
+        ).pack()
 
-    def login_handler(self):
-        u = self.entry_user.get()
-        p = self.entry_pass.get()
+    def login(self):
+        login = self.entry_login.get().strip()
+        password = self.entry_password.get().strip()
 
-        if not check_safety(u) or not check_safety(p):
+        if not login or not password:
+            messagebox.showwarning("Ошибка", "Заполните все поля")
+            return
+
+        if not check_safety(login) or not check_safety(password):
             messagebox.showerror("Ошибка", "Запрещённые символы")
             return
 
-        password_hash = get_hash(p)
-        user = data.check_user_login(u, password_hash)
+        password_hash = get_hash(password)
+        user_id = data.check_login(login, password_hash)
 
-        if user:
-            account_id, balance = user
-            messagebox.showinfo(
-                "Успех",
-                f"Вход выполнен!\nID: {account_id}\nБаланс: {balance}"
-            )
-        else:
+        if user_id is None:
             messagebox.showerror("Ошибка", "Неверный логин или пароль")
+            return
 
-    def open_registration(self):
+        self.root.destroy()
+        open_main_window(user_id)
+
+    def open_register(self):
         RegisterWindow(self.root)
 
-
+# ОКНО РЕГИСТРАЦИИ
 class RegisterWindow:
     def __init__(self, master):
         self.window = tk.Toplevel(master)
         self.window.title("Регистрация")
-        self.window.geometry("500x300")
-        self.create_widgets()
+        self.window.geometry("420x320")
+        self.window.resizable(False, False)
 
-    def create_widgets(self):
-        tk.Label(self.window, text="Логин:", font=("Arial", 16)).grid(row=0, column=0, pady=15)
-        self.entry_user = tk.Entry(self.window, font=("Arial", 14))
-        self.entry_user.grid(row=0, column=1)
+        tk.Label(self.window, text="Логин", font=("Arial", 14)).pack(pady=10)
+        self.entry_login = tk.Entry(self.window, font=("Arial", 14))
+        self.entry_login.pack()
 
-        tk.Label(self.window, text="Пароль:", font=("Arial", 16)).grid(row=1, column=0)
-        self.entry_pass1 = tk.Entry(self.window, show="*", font=("Arial", 14))
-        self.entry_pass1.grid(row=1, column=1)
+        tk.Label(self.window, text="Пароль", font=("Arial", 14)).pack(pady=10)
+        self.entry_password1 = tk.Entry(self.window, show="*", font=("Arial", 14))
+        self.entry_password1.pack()
 
-        tk.Label(self.window, text="Повтор:", font=("Arial", 16)).grid(row=2, column=0)
-        self.entry_pass2 = tk.Entry(self.window, show="*", font=("Arial", 14))
-        self.entry_pass2.grid(row=2, column=1)
+        tk.Label(self.window, text="Повтор пароля", font=("Arial", 14)).pack(pady=10)
+        self.entry_password2 = tk.Entry(self.window, show="*", font=("Arial", 14))
+        self.entry_password2.pack()
 
         tk.Button(
             self.window,
             text="Зарегистрироваться",
-            bg="#2ecc71",
-            fg="white",
             font=("Arial", 14),
-            command=self.register_handler
-        ).grid(row=3, column=0, columnspan=2, pady=25)
+            bg="#3498db",
+            fg="white",
+            command=self.register
+        ).pack(pady=20)
 
-    def register_handler(self):
-        u = self.entry_user.get()
-        p1 = self.entry_pass1.get()
-        p2 = self.entry_pass2.get()
+    def register(self):
+        login = self.entry_login.get().strip()
+        p1 = self.entry_password1.get().strip()
+        p2 = self.entry_password2.get().strip()
 
-        if not u or not p1 or not p2:
+        if not login or not p1 or not p2:
             messagebox.showwarning("Ошибка", "Заполните все поля")
+            return
+
+        if not check_safety(login) or not check_safety(p1):
+            messagebox.showerror("Ошибка", "Запрещённые символы")
+            return
+
+        if len(login) < 4 or len(login) > 16:
+            messagebox.showwarning("Ошибка", "Логин 4–16 символов")
+            return
+
+        if len(p1) < 4 or len(p1) > 16:
+            messagebox.showwarning("Ошибка", "Пароль 4–16 символов")
             return
 
         if p1 != p2:
@@ -125,22 +124,77 @@ class RegisterWindow:
             return
 
         password_hash = get_hash(p1)
-        account_id = hash(u) & 0x7FFFFFFF
+        user_id = data.create_user(login, password_hash)
 
-        try:
-            data.create_user(account_id, u, password_hash)
-        except Exception:
+        if user_id is None:
             messagebox.showerror("Ошибка", "Логин уже существует")
             return
 
         messagebox.showinfo(
             "Успех",
-            f"Аккаунт создан!\nID счёта: {account_id}"
+            f"Аккаунт создан!\nID счёта: {user_id}"
         )
         self.window.destroy()
+# ГЛАВНОЕ ОКНО ПОЛЬЗОВАТЕЛЯ
+def open_main_window(user_id: int):
+    root = tk.Tk()
+    root.title("Bank | Аккаунт")
+    root.geometry("420x300")
+    root.resizable(False, False)
 
+    balance_label = tk.Label(root, font=("Arial", 16))
+    balance_label.pack(pady=20)
 
+    def refresh_balance():
+        balance = data.get_balance(user_id)
+        balance_label.config(text=f"Баланс: {balance}")
+
+    refresh_balance()
+
+    tk.Label(root, text="ID получателя", font=("Arial", 12)).pack()
+    entry_to = tk.Entry(root, font=("Arial", 12))
+    entry_to.pack()
+
+    tk.Label(root, text="Сумма", font=("Arial", 12)).pack(pady=5)
+    entry_amount = tk.Entry(root, font=("Arial", 12))
+    entry_amount.pack()
+
+    def do_transfer():
+        try:
+            to_id = int(entry_to.get())
+            amount = int(entry_amount.get())
+        except ValueError:
+            messagebox.showerror("Ошибка", "Введите числа")
+            return
+
+        result = data.transfer(user_id, to_id, amount)
+
+        if result == 0:
+            messagebox.showinfo("Успех", "Перевод выполнен")
+            refresh_balance()
+        elif result == -1:
+            messagebox.showerror("Ошибка", "Некорректная сумма")
+        elif result == -2:
+            messagebox.showerror("Ошибка", "Ваш счёт не найден")
+        elif result == -3:
+            messagebox.showerror("Ошибка", "Получатель не найден")
+        elif result == -4:
+            messagebox.showerror("Ошибка", "Недостаточно средств")
+        else:
+            messagebox.showerror("Ошибка", "Неизвестная ошибка")
+
+    tk.Button(
+        root,
+        text="Перевести",
+        font=("Arial", 14),
+        bg="#2ecc71",
+        fg="white",
+        command=do_transfer
+    ).pack(pady=20)
+
+    root.mainloop()
+# ТОЧКА ВХОДА
 if __name__ == "__main__":
     root = tk.Tk()
-    app = BankApp(root)
+    LoginWindow(root)
     root.mainloop()
