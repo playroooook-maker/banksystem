@@ -1,10 +1,31 @@
 import sqlite3
 from pathlib import Path
+import shutil
+import datetime
+import os
 
 # Определяем путь к файлу базы данных.
 # Path(__file__).parent говорит: "Ищи в той же папке, где лежит этот скрипт"
 DB_PATH = Path(__file__).parent / "bank.db"
 
+BACKUP_DIR = Path(__file__).parent / "backups"
+BACKUP_DIR.mkdir(exist_ok=True)  # Создастся если не существует
+
+
+def backup_database():
+    """Создаёт резервную копию базы данных"""
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_file = BACKUP_DIR / f"bank_backup_{timestamp}.db"
+
+    shutil.copy2(DB_PATH, backup_file)
+    print(f"✅ Создан бэкап: {backup_file}")
+
+    # Удаляем старые бэкапы (оставляем последние 10)
+    backups = sorted(BACKUP_DIR.glob("bank_backup_*.db"))
+    if len(backups) > 10:
+        for old_backup in backups[:-10]:  # Все кроме последних 10
+            old_backup.unlink()
+            print(f"🗑️ Удалён старый бэкап: {old_backup.name}")
 
 def _connect():
     """Служебная функция для открытия 'двери' в базу данных"""
@@ -56,6 +77,7 @@ def create_user(login: str, password_hash: str) -> int | None:
         VALUES (?, ?, ?, 1000)
         """, (account_id, login, password_hash))  # Вставляем данные вместо '?'
         conn.commit()
+        backup_database()
         conn.close()
         return account_id
     except sqlite3.IntegrityError:
@@ -153,10 +175,12 @@ def transfer_by_login(from_id, to_login, amount):
         cur.execute("INSERT INTO transactions (from_id, to_id, amount) VALUES (?, ?, ?)", (from_id, to_id, amount))
 
         conn.commit()  # Только здесь данные реально сохранятся в файл!
+        backup_database()
         res = 0  # Успех
     except Exception as e:
         print(f"Критическая ошибка базы: {e}")
+        conn.rollback()
         res = -5  # Что-то пошло не так на уровне SQL
-
-    conn.close()
+    finally:
+        conn.close()
     return res
